@@ -1,5 +1,6 @@
 """교과서(그림 II-35, 딥러닝 실습)와 같은 구조의 CNN을 MNIST로 학습하고
-웹페이지에서 쓸 가중치 파일(js/model-weights.js)과 KNN 비교용 샘플(js/knn-samples.js)을 만든다.
+웹페이지에서 쓸 가중치 파일(src/js/model-weights.js)과 KNN 비교용 샘플(src/js/knn-samples.js)을 만든다.
+만든 뒤에는 python tools/build.py 로 단일 index.html 을 다시 만든다.
 
 구조: Conv2D(32,3x3,relu) → MaxPool(2) → Conv2D(64,3x3,relu) → MaxPool(2)
       → Flatten → Dense(128,relu) → Dense(10,softmax)
@@ -103,7 +104,7 @@ weights = {
     "fc1": {"w": pack(sd["fc1.weight"]), "b": pack(sd["fc1.bias"])},         # [128][1600] (CHW 평탄화)
     "fc2": {"w": pack(sd["fc2.weight"]), "b": pack(sd["fc2.bias"])},         # [10][128]
 }
-(ROOT / "js" / "model-weights.js").write_text(
+(ROOT / "src" / "js" / "model-weights.js").write_text(
     "// tools/train.py 로 생성된 파일입니다. (MNIST 학습 CNN 가중치, float32 base64)\n"
     "window.MODEL_WEIGHTS = " + json.dumps(weights) + ";\n")
 
@@ -116,7 +117,7 @@ for d in range(10):
     ys.append(np.full(PER, d, dtype=np.uint8))
 xs = np.concatenate(xs).astype(np.uint8)
 ys = np.concatenate(ys)
-(ROOT / "js" / "knn-samples.js").write_text(
+(ROOT / "src" / "js" / "knn-samples.js").write_text(
     "// tools/train.py 로 생성된 파일입니다. (MNIST 학습 데이터 일부, 28x28 uint8 base64)\n"
     "window.KNN_SAMPLES = " + json.dumps({
         "count": int(len(ys)),

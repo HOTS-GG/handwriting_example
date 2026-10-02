@@ -10,9 +10,10 @@
 
 ## 사용 방법
 
-서버가 필요 없습니다. 모든 계산은 학생 기기(PC·태블릿·스마트폰)에서 이루어지고, 인터넷 연결도 필요 없습니다.
+**`index.html` 파일 하나만 있으면 됩니다.** (CSS·자바스크립트·학습된 모델이 모두 들어 있는 약 3MB 파일)
+서버도 인터넷도 필요 없고, 모든 계산은 학생 기기(PC·태블릿·스마트폰)에서 이루어집니다.
 
-- **가장 간단한 방법:** 폴더를 내려받아 `index.html`을 더블클릭
+- **가장 간단한 방법:** `index.html`만 학생들에게 나눠 주고(메신저·USB·클래스룸 등) 더블클릭
 - **학생들에게 링크로 배포:** 저장소 Settings → Pages → Branch 선택 후 저장하면 `https://<계정>.github.io/<저장소>/` 주소가 생깁니다.
 
 ## 모델
@@ -24,7 +25,7 @@ Input(28,28,1) → Conv2D(32,3×3,relu) → MaxPool(2×2) → Conv2D(64,3×3,rel
 
 - MNIST 6만 장으로 학습, 테스트 정확도 **99.59%**
 - 손으로 쓴 글씨에 강하도록 회전·크기·위치·기울기·굵기를 바꿔 가며 학습(데이터 증강)
-- 가중치는 `js/model-weights.js`, 순전파 계산은 라이브러리 없이 `js/model.js`에 직접 구현 (1회 계산 약 5ms)
+- 가중치는 `src/js/model-weights.js`, 순전파 계산은 라이브러리 없이 `src/js/model.js`에 직접 구현 (1회 계산 약 5ms)
 
 ### 다시 학습하려면 (선택)
 
@@ -33,7 +34,14 @@ pip install torch numpy
 curl -O https://storage.googleapis.com/tensorflow/tf-keras-datasets/mnist.npz
 python tools/train.py mnist.npz   # CPU에서 약 3분 (GPU면 더 빠름)
 node tools/verify.js              # JS 계산이 파이토치와 같은지 확인
+python tools/build.py             # src/ 를 합쳐 단일 index.html 다시 만들기
 ```
+
+## 폴더 구성
+
+- `index.html` — 배포용 단일 파일 (자동 생성, 직접 수정하지 말 것)
+- `src/` — 원본 소스 (HTML·CSS·JS). 수정 후 `python tools/build.py` 실행
+- `tools/` — 학습(`train.py`), 단일 파일 빌드(`build.py`), 검증(`verify.js`)
 
 ## 수업 활동 아이디어
 
