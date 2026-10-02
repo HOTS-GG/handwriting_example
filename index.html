@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손글씨 숫자 인식 실험실</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">✍️</span>
+    <div>
+      <h1>손글씨 숫자 인식 실험실</h1>
+      <p>합성곱 신경망(CNN)이 내 글씨를 어떻게 알아보는지 실시간으로 살펴보자</p>
+    </div>
+  </div>
+  <div class="engine" id="engine">
+    <span class="dot"></span>
+    <span>내 브라우저에서 딥러닝 계산 중 · <b id="ms">-</b> ms · 학습 정확도 <b id="acc">-</b></span>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 왼쪽: 손글씨 작업 공간 -->
+  <section class="panel" id="draw-panel">
+    <div class="panel-head">
+      <span class="step">1</span>
+      <h2>손글씨 쓰기</h2>
+    </div>
+    <p class="hint">0~9 중 숫자 <b>하나</b>를 칸에 크게 써 보세요. 쓰는 동안 바로 인식돼요.</p>
+    <div class="canvas-wrap">
+      <canvas id="pad" width="400" height="400" aria-label="손글씨 입력 칸"></canvas>
+      <div class="placeholder" id="placeholder">여기에 숫자를 써 보세요</div>
+    </div>
+    <div class="tools">
+      <button id="btn-clear" class="primary">🧽 지우기</button>
+      <button id="btn-undo">↶ 되돌리기</button>
+      <button id="btn-replay">▶ 쓰는 과정 다시보기</button>
+    </div>
+    <label class="slider">
+      <span>펜 굵기</span>
+      <input type="range" id="pen" min="14" max="44" value="26">
+    </label>
+
+    <div class="card">
+      <h3>쓰는 동안 예측이 어떻게 바뀌었을까?</h3>
+      <p class="muted small">획을 하나 그을 때마다 인공지능의 생각이 기록돼요.</p>
+      <div id="stroke-timeline" class="timeline"><span class="muted small">아직 기록이 없어요</span></div>
+    </div>
+
+    <div class="card">
+      <h3>내 실험 기록</h3>
+      <p class="muted small">내가 쓰려던 숫자를 누르면 정답 여부가 기록되고 칸이 비워져요.</p>
+      <div class="digit-buttons" id="label-buttons"></div>
+      <div class="score" id="score"></div>
+      <div class="log" id="log"></div>
+      <button id="btn-reset-log" class="link">기록 초기화</button>
+    </div>
+  </section>
+
+  <!-- 가운데: 인식 과정 -->
+  <section class="panel" id="process-panel">
+    <div class="panel-head">
+      <span class="step">2</span>
+      <h2>딥러닝이 생각하는 과정</h2>
+      <span class="flow-note">입력 → 합성곱 → 풀링 → 합성곱 → 풀링 → 평탄화 → 완전 연결 → 출력</span>
+    </div>
+    <div id="pipeline" class="pipeline empty">
+      <article class="stage" data-stage="0">
+        <header><h3>① 입력 데이터 만들기 <small>전처리</small></h3><span class="shape">28 × 28 × 1</span></header>
+        <p class="desc">글씨 부분만 잘라 20×20 크기로 줄이고, 무게중심이 가운데 오도록 28×28 칸에 놓아요. MNIST 데이터셋과 같은 모양이 돼요.</p>
+        <div class="prep">
+          <figure><canvas id="prep-crop" width="120" height="120"></canvas><figcaption>글씨 영역 자르기</figcaption></figure>
+          <span class="arrow">→</span>
+          <figure><canvas id="prep-small" width="20" height="20" class="px"></canvas><figcaption>20×20 축소</figcaption></figure>
+          <span class="arrow">→</span>
+          <figure><canvas id="prep-input" width="28" height="28" class="px"></canvas><figcaption>28×28 · 784개 숫자</figcaption></figure>
+          <figure class="grid-fig"><canvas id="pixel-grid" width="560" height="560" class="pixel-canvas" title="눌러서 크게 보기"></canvas><figcaption>컴퓨터가 보는 값 (0~255) · 눌러서 크게</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="stage" data-stage="1">
+        <header><h3>② 합성곱층 1 <small>Conv2D · 필터 32개 · 3×3</small></h3><span class="shape">26 × 26 × 32</span></header>
+        <p class="desc">3×3 필터 32개가 이미지를 훑으며 가로선·세로선·곡선 같은 <b>특징</b>을 찾아요. 밝을수록 그 특징이 강하게 발견된 곳이에요. <span class="muted">(지도를 누르면 크게 보기)</span></p>
+        <div class="maps" id="maps-conv1"></div>
+      </article>
+
+      <article class="stage" data-stage="2">
+        <header><h3>③ 풀링층 1 <small>MaxPooling 2×2</small></h3><span class="shape">13 × 13 × 32</span></header>
+        <p class="desc">2×2 칸에서 가장 큰 값만 남겨 크기를 절반으로 줄여요. 중요한 정보는 지키고 계산량은 줄여요.</p>
+        <div class="maps" id="maps-pool1"></div>
+      </article>
+
+      <article class="stage" data-stage="3">
+        <header><h3>④ 합성곱층 2 <small>Conv2D · 필터 64개 · 3×3</small></h3><span class="shape">11 × 11 × 64</span></header>
+        <p class="desc">앞에서 찾은 특징들을 조합해 더 복잡한 모양(고리, 꺾임, 교차점 등)을 찾아요.</p>
+        <div class="maps" id="maps-conv2"></div>
+      </article>
+
+      <article class="stage" data-stage="4">
+        <header><h3>⑤ 풀링층 2 <small>MaxPooling 2×2</small></h3><span class="shape">5 × 5 × 64</span></header>
+        <p class="desc">한 번 더 크기를 줄여 핵심 특징만 남겨요.</p>
+        <div class="maps" id="maps-pool2"></div>
+      </article>
+
+      <article class="stage" data-stage="5">
+        <header><h3>⑥ 평탄화 <small>Flatten</small></h3><span class="shape">1600</span></header>
+        <p class="desc">5×5×64 = 1600개의 값을 한 줄로 펼쳐 완전 연결층에 넣을 준비를 해요.</p>
+        <canvas id="flat" width="1600" height="1" class="strip px"></canvas>
+      </article>
+
+      <article class="stage" data-stage="6">
+        <header><h3>⑦ 완전 연결층 <small>Dense · 뉴런 128개 · ReLU</small></h3><span class="shape">128</span></header>
+        <p class="desc">1600개의 값이 모든 뉴런과 연결되어 계산돼요. 켜진(밝은) 뉴런들의 조합이 숫자를 구별하는 단서예요.</p>
+        <div class="neurons" id="neurons"></div>
+      </article>
+
+      <article class="stage" data-stage="7">
+        <header><h3>⑧ 출력층 <small>Dense · 뉴런 10개 · Softmax</small></h3><span class="shape">10</span></header>
+        <p class="desc">각 숫자(0~9)일 확률을 계산해요. 10개 확률을 모두 더하면 100%예요.</p>
+        <div class="outputs" id="outputs"></div>
+      </article>
+    </div>
+    <div class="empty-msg" id="empty-msg">왼쪽 칸에 숫자를 쓰면 신경망 각 층의 계산 결과가 여기에 나타나요.</div>
+  </section>
+
+  <!-- 오른쪽: 결과 -->
+  <section class="panel" id="result-panel">
+    <div class="panel-head">
+      <span class="step">3</span>
+      <h2>인식 결과</h2>
+    </div>
+    <div class="answer">
+      <div class="answer-label">딥러닝(CNN)의 판단</div>
+      <div class="answer-digit" id="answer-digit">?</div>
+      <div class="answer-conf" id="answer-conf">숫자를 써 주세요</div>
+    </div>
+
+    <div class="card">
+      <h3>숫자별 확률</h3>
+      <div class="bars" id="bars"></div>
+    </div>
+
+    <div class="card">
+      <h3>비교: k-최근접 이웃(k=5)</h3>
+      <p class="muted small">기존 기계학습 방법이에요. 학습 데이터 2,000장 중 내 글씨와 픽셀이 가장 비슷한 5장을 찾아 다수결로 정해요.</p>
+      <div class="knn-result" id="knn-result">-</div>
+      <div class="neighbors" id="neighbors"></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close" aria-label="닫기">✕</button>
+    <h3 id="modal-title"></h3>
+    <div class="modal-body">
+      <figure><canvas id="modal-filter" width="3" height="3" class="px"></canvas><figcaption>필터(가중치) <span class="legend"><i class="neg"></i>음수 <i class="pos"></i>양수</span></figcaption></figure>
+      <span class="arrow">⊛</span>
+      <figure><canvas id="modal-input" width="28" height="28" class="px"></canvas><figcaption>입력</figcaption></figure>
+      <span class="arrow">=</span>
+      <figure><canvas id="modal-map" width="26" height="26" class="px"></canvas><figcaption>특징 지도</figcaption></figure>
+    </div>
+    <p class="muted small" id="modal-desc"></p>
+  </div>
+</div>
+
+<div class="modal" id="pixel-modal" hidden>
+  <div class="modal-box wide">
+    <button class="modal-close" data-close aria-label="닫기">✕</button>
+    <h3>컴퓨터가 보는 내 글씨: 28 × 28 = 784개의 숫자</h3>
+    <p class="muted small">0은 검은색(빈 곳), 255는 흰색(글씨)이에요. 신경망에는 이 값을 255로 나눈 0~1 사이 값이 들어가요(데이터 정규화).</p>
+    <canvas id="pixel-big" width="560" height="560"></canvas>
+  </div>
+</div>
+
+<script src="js/model-weights.js"></script>
+<script src="js/knn-samples.js"></script>
+<script src="js/model.js"></script>
+<script src="js/preprocess.js"></script>
+<script src="js/knn.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
