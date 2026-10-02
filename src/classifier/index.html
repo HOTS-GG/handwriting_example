@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이미지 분류 실험실</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🖼️</span>
+    <div>
+      <h1>이미지 분류 실험실</h1>
+      <p>합성곱 신경망(CNN)이 사진 속 물체를 1000가지 중 무엇인지 알아보는 과정을 살펴보자</p>
+    </div>
+  </div>
+  <div class="engine" id="engine">
+    <span class="dot"></span>
+    <span id="engine-text">모델 불러오는 중…</span>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 왼쪽: 이미지 넣기 -->
+  <section class="panel" id="input-panel">
+    <div class="panel-head"><span class="step">1</span><h2>이미지 넣기</h2></div>
+    <div class="drop" id="drop">
+      <img id="preview" alt="" hidden>
+      <video id="video" playsinline muted hidden></video>
+      <div class="drop-msg" id="drop-msg">
+        <b>사진을 여기에 끌어다 놓거나</b><br>아래 버튼으로 골라 보세요<br><span class="muted small">Ctrl+V로 붙여넣기도 돼요</span>
+      </div>
+      <div class="live-badge" id="live-badge" hidden>● 실시간 인식 중</div>
+    </div>
+    <div class="tools">
+      <label class="btn primary">📁 사진 고르기<input type="file" id="file" accept="image/*" hidden></label>
+      <button id="btn-cam" class="btn">📷 웹캠 켜기</button>
+      <button id="btn-snap" class="btn" hidden>⏸ 이 장면 멈추기</button>
+    </div>
+    <p class="muted small" id="cam-msg"></p>
+    <div class="card">
+      <h3>예시 사진</h3>
+      <div class="samples" id="samples"></div>
+    </div>
+    <div class="card">
+      <h3>알아 두기</h3>
+      <ul class="notes small">
+        <li>이 모델은 <b>이미지넷(ImageNet)</b> 사진 약 128만 장으로 미리 학습된 <b>MobileNet</b>이에요. (교과서 125쪽 이미지넷 프로젝트)</li>
+        <li>1000가지 종류만 알아요. 예를 들어 <b>'사람'</b>이라는 종류는 없어서, 사람을 찍으면 옷이나 안경 같은 것으로 답할 수 있어요.</li>
+        <li>사진은 어디에도 전송되지 않아요. 모든 계산은 이 기기 안에서 이루어져요.</li>
+      </ul>
+      <button id="btn-classes" class="link">이 인공지능이 아는 1000가지 보기 →</button>
+    </div>
+  </section>
+
+  <!-- 가운데: 과정 -->
+  <section class="panel" id="process-panel">
+    <div class="panel-head">
+      <span class="step">2</span><h2>딥러닝이 사진을 보는 과정</h2>
+      <span class="flow-note">층이 깊어질수록 크기는 작아지고, 특징(채널)은 많아지고, 더 복잡한 모양을 알아봐요</span>
+    </div>
+    <div class="pipeline empty" id="pipeline">
+      <article class="stage">
+        <header><h3>① 입력 이미지 <small>전처리</small></h3><span class="shape">224 × 224 × 3</span></header>
+        <p class="desc">가운데를 정사각형으로 잘라 224×224 크기로 줄여요. 컴퓨터에게 사진은 <b>빨강·초록·파랑(RGB)</b> 3장의 숫자 표, 모두 150,528개의 숫자예요.</p>
+        <div class="rgb">
+          <figure><canvas id="in-full" width="224" height="224"></canvas><figcaption>모델이 보는 사진</figcaption></figure>
+          <span class="arrow">=</span>
+          <figure><canvas id="in-r" width="224" height="224"></canvas><figcaption>빨강(R)</figcaption></figure>
+          <figure><canvas id="in-g" width="224" height="224"></canvas><figcaption>초록(G)</figcaption></figure>
+          <figure><canvas id="in-b" width="224" height="224"></canvas><figcaption>파랑(B)</figcaption></figure>
+        </div>
+      </article>
+      <div id="stages"></div>
+      <article class="stage">
+        <header><h3>⑧ 전역 평균 풀링 <small>Global Average Pooling</small></h3><span class="shape">1024</span></header>
+        <p class="desc">마지막 특징 지도 1024장을 각각 평균 내서 1024개의 숫자로 요약해요. 이 숫자들이 사진의 '특징 요약표'예요.</p>
+        <canvas id="gap" width="1024" height="1" class="strip"></canvas>
+      </article>
+      <article class="stage">
+        <header><h3>⑨ 완전 연결층 + 소프트맥스 <small>출력층</small></h3><span class="shape">1000</span></header>
+        <p class="desc">1024개의 특징에 가중치를 곱해 1000가지 종류 각각의 점수를 계산하고, 확률로 바꿔요. 아래 막대 하나하나가 한 종류예요.</p>
+        <canvas id="probs" width="1000" height="80" class="probs"></canvas>
+        <div class="probs-axis small muted"><span>0번</span><span class="split">← 동물 | 물건·음식·풍경 →</span><span>999번</span></div>
+      </article>
+    </div>
+    <div class="empty-msg" id="empty-msg">왼쪽에서 사진을 넣으면 신경망 각 층의 계산 결과가 여기에 나타나요.</div>
+  </section>
+
+  <!-- 오른쪽: 결과 -->
+  <section class="panel" id="result-panel">
+    <div class="panel-head"><span class="step">3</span><h2>분류 결과</h2></div>
+    <div class="answer">
+      <div class="answer-label">딥러닝(MobileNet)의 판단</div>
+      <div class="answer-name" id="answer-name">?</div>
+      <div class="answer-en" id="answer-en"></div>
+      <div class="answer-conf" id="answer-conf">사진을 넣어 주세요</div>
+    </div>
+    <div class="card">
+      <h3>확률이 높은 5가지</h3>
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="card">
+      <h3>어디를 보고 판단했을까?</h3>
+      <p class="muted small">1등 종류의 점수를 높인 부분이 빨갛게 보여요. (클래스 활성화 지도, CAM)</p>
+      <div class="cam-wrap">
+        <canvas id="cam" width="224" height="224"></canvas>
+      </div>
+      <label class="small"><input type="range" id="cam-alpha" min="0" max="100" value="55"> 겹쳐 보기 정도</label>
+    </div>
+    <div class="timing small muted" id="timing"></div>
+  </section>
+</main>
+
+<div class="modal" id="classes-modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" data-close aria-label="닫기">✕</button>
+    <h3>이 인공지능이 아는 1000가지</h3>
+    <input type="search" id="class-search" placeholder="찾아보기 (예: 고양이, 컵, 자동차)">
+    <div class="class-list" id="class-list"></div>
+  </div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p>딥러닝 모델을 준비하고 있어요…</p>
+  <p class="muted small" id="loading-detail"></p>
+</div>
+
+<script src="vendor/tf.min.js"></script>
+<script src="model-data.js"></script>
+<script src="samples.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
