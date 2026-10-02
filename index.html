@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<!-- 이 파일은 tools/build.py 로 src/ 에서 자동 생성됩니다. 수정은 src/ 에서 하세요. -->
+<!-- 이 파일은 tools/build.py 로 src/handwriting/ 에서 자동 생성됩니다. 수정은 src/ 에서 하세요. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>손글씨 숫자 인식 실험실</title>
@@ -47,6 +47,7 @@ button { font: inherit; cursor: pointer; }
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 16px; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 14px;
 }
+.panel > * { flex-shrink: 0; }
 .panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .panel-head h2 { font-size: 17px; }
 .step { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff;
